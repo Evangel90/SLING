@@ -165,6 +165,7 @@ export function CreateGift() {
   // The lock is set on the recipient's clock: dates and times below are read in `zone`.
   const myZone = localZone();
   const zone = tz === "local" ? myZone : tz;
+  const zoneLabel = TIME_ZONES.find((z) => z.value === tz && tz !== "local")?.label.replace(/\s*\(.*\)$/, "") ?? "your time zone";
   let unlockAt: number | null = null;
   if (locked) {
     if (preset === "custom") {
@@ -188,10 +189,13 @@ export function CreateGift() {
     if (latestUnlock && latestUnlock - now < LOCK_MIN_MS)
       lockError = `${stock?.name} is too close to its conversion deadline to lock. Send it to open right away instead.`;
     else if (!unlockAt) lockError = "Pick a date and time.";
+    else if (unlockAt <= now)
+      lockError = `That time has already passed${tz === "local" ? "" : ` in ${zoneLabel}`}. Pick a later date or time.`;
     else if (unlockAt - now < LOCK_MIN_MS) lockError = "Pick a time at least a minute from now.";
     else if (unlockAt - now > LOCK_MAX_MS) lockError = "Locks can be at most 5 years.";
   }
   const openDate = unlockAt ? new Date(unlockAt) : null;
+  const zoneAbbr = tzNameIn(openDate ?? new Date(now), zone);
   const opensLabel = openDate ? `${fmtDayIn(openDate, zone)}, ${fmtTimeIn(openDate, zone)} ${tzNameIn(openDate, zone)}` : null;
   const localNote =
     openDate && zone !== myZone && (fmtTimeIn(openDate, zone) !== fmtTimeIn(openDate, myZone) || fmtDayIn(openDate, zone) !== fmtDayIn(openDate, myZone))
@@ -215,6 +219,17 @@ export function CreateGift() {
       setCustomDate(base.date);
       setCustomTime(base.time);
     }
+  }
+
+  /** Keep the same moment when switching zones: a custom date/time is converted to the new zone's clock. */
+  function changeZone(next: string) {
+    const nextZone = next === "local" ? myZone : next;
+    if (preset === "custom" && unlockAt && unlockAt > now) {
+      const w = isoIn(unlockAt, nextZone);
+      setCustomDate(w.date);
+      setCustomTime(w.time);
+    }
+    setTz(next);
   }
 
   function pickMode(m: "now" | "lock") {
@@ -595,6 +610,28 @@ export function CreateGift() {
           </div>
           {locked && (
             <div className="flex flex-col gap-3.5 p-4 rounded-[14px] bg-ground">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <label className="flex items-center gap-2 text-[13px] text-muted">
+                  <span>
+                    Time zone<span className="lg:hidden"> · pick theirs</span>
+                  </span>
+                  <select
+                    value={tz}
+                    disabled={busy}
+                    onChange={(e) => changeZone(e.target.value)}
+                    className="h-10 px-2.5 rounded-[10px] border border-line bg-surface text-sm text-ink"
+                  >
+                    {TIME_ZONES.map((z) => (
+                      <option key={z.value} value={z.value}>
+                        {z.value === "local"
+                          ? `Your local time (${tzNameIn(new Date(now), myZone)})`
+                          : `${z.label} · ${tzNameIn(new Date(unlockAt ?? now), z.value)}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="hidden lg:inline text-[13px] text-muted">Pick theirs so it opens at the right moment for them.</span>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {(
                   [
@@ -634,7 +671,7 @@ export function CreateGift() {
                       />
                     </label>
                     <label className="flex items-center gap-1.5 text-[13px] text-muted">
-                      Time
+                      Time ({zoneAbbr})
                       <input
                         type="time"
                         value={customTime}
@@ -646,26 +683,11 @@ export function CreateGift() {
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <label className="flex items-center gap-2 text-[13px] text-muted">
-                  <span>
-                    Time zone<span className="lg:hidden"> · pick theirs</span>
-                  </span>
-                  <select
-                    value={tz}
-                    disabled={busy}
-                    onChange={(e) => setTz(e.target.value)}
-                    className="h-10 px-2.5 rounded-[10px] border border-line bg-surface text-sm text-ink"
-                  >
-                    {TIME_ZONES.map((z) => (
-                      <option key={z.value} value={z.value}>
-                        {z.value === "local" ? `Your local time (${tzNameIn(new Date(now), myZone)})` : z.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <span className="hidden lg:inline text-[13px] text-muted">Pick theirs so it opens at the right moment for them.</span>
-              </div>
+              {preset === "custom" && tz !== "local" && (
+                <p className="m-0 -mt-1.5 text-[12.5px] text-muted">
+                  Enter the date and time as the clock reads in {zoneLabel}.
+                </p>
+              )}
               {openDate && !lockError && (
                 <div className="flex flex-col gap-1">
                   <div className="text-[15px] font-semibold">

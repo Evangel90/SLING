@@ -127,6 +127,20 @@ export const fmtShortIn = (d: Date, zone: string) => d.toLocaleDateString("en-US
 export const fmtTimeIn = (d: Date, zone: string) =>
   d.toLocaleTimeString("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit" });
 
-export const tzNameIn = (d: Date, zone: string) =>
-  new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName")
-    ?.value ?? "";
+// en-US only knows US abbreviations ("GMT+11" for Sydney), so ask locales that name each region's zones:
+// AEDT (en-AU), WAT/EAT (en-NG), IST (en-IN), SGT (en-SG), GST/CET/BST (en-GB), BRT (pt-BR), JST (ja-JP).
+const TZ_LOCALES = ["en-US", "en-GB", "en-AU", "en-IN", "en-NG", "en-SG", "pt-BR", "ja-JP"];
+const isOffsetOnly = (n: string) => /^(GMT|UTC)[+-−]/.test(n);
+
+/** Short zone name at that moment, e.g. "EDT", "AEDT", "WAT"; "GMT+4" only if no locale has a name for it. */
+export function tzNameIn(d: Date, zone: string): string {
+  let fallback = "";
+  for (const locale of TZ_LOCALES) {
+    const name =
+      new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName")
+        ?.value ?? "";
+    if (name && !isOffsetOnly(name)) return name;
+    fallback ||= name;
+  }
+  return fallback;
+}
