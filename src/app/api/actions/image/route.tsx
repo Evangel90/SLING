@@ -25,7 +25,6 @@ const PILL = {
   gone: { label: "Claimed or taken back", bg: "#E2E0DA", fg: "#3A3C42", icon: ICON.done, cfg: "#DADCE0", cbg: "rgba(255,255,255,0.09)" },
 };
 
-const S = 1.85; // card drawn at the design's 400×252 scaled to 740×466
 
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams;
@@ -38,6 +37,9 @@ export async function GET(req: Request) {
   const stParam = q.get("st");
   const st = stParam === "gone" || stParam === "locked" ? stParam : "claimable";
   const date = (q.get("d") ?? "").slice(0, 16);
+  // "wide" (1200×630) is for link previews like X cards, which crop to ~1.91:1. Default is the 1:1 Blink image.
+  const wide = q.get("layout") === "wide";
+  const S = wide ? 1.3 : 1.85; // card drawn at the design's 400×252, scaled
 
   const b = brandFor(symbol);
   const pill = { ...PILL[st], label: st === "locked" && date ? `Opens ${date}` : PILL[st].label };
@@ -49,37 +51,23 @@ export async function GET(req: Request) {
   const headline = unknownAmount ? `This ${name} gift` : `${dollarsStr}${cents === "00" ? "" : "." + cents} of ${name}${muted ? "" : " for you"}`;
   const [semibold, regular, mono, serif] = await fonts;
 
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: 1080,
-          height: 1080,
-          padding: "80px 90px 72px",
-          background: "#EFEDE8",
-          color: "#16171A",
-          fontFamily: "Geist",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+  const headlineEl = (
         <div
           style={{
-            fontSize: 92,
+            fontSize: wide ? 64 : 92,
             fontWeight: 600,
             letterSpacing: "-0.045em",
             lineHeight: 0.98,
-            textAlign: "center",
+            textAlign: wide ? "left" : "center",
             color: muted ? "#5E6068" : "#16171A",
             display: "flex",
-            justifyContent: "center",
+            justifyContent: wide ? "flex-start" : "center",
           }}
         >
           {headline}
         </div>
-
+  );
+  const cardEl = (
         <div
           style={{
             width: 400 * S,
@@ -179,8 +167,9 @@ export async function GET(req: Request) {
             <span style={{ fontSize: 11 * S, fontWeight: 600, letterSpacing: "0.16em", color: "rgba(255,255,255,0.55)" }}>SLING</span>
           </div>
         </div>
-
-        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  );
+  const footerEl = (
+        <div style={{ width: "100%", display: "flex", flexDirection: wide ? "column" : "row", alignItems: wide ? "flex-start" : "center", justifyContent: "space-between", gap: wide ? 28 : 0 }}>
           <div
             style={{
               height: 64,
@@ -210,11 +199,53 @@ export async function GET(req: Request) {
             <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: "0.16em" }}>SLING</span>
           </div>
         </div>
+  );
+
+  return new ImageResponse(
+    wide ? (
+      <div
+        style={{
+          width: 1200,
+          height: 630,
+          padding: "64px 56px 60px 72px",
+          background: "#EFEDE8",
+          color: "#16171A",
+          fontFamily: "Geist",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 40,
+        }}
+      >
+        <div style={{ width: 520, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          {headlineEl}
+          {footerEl}
+        </div>
+        {cardEl}
+      </div>
+    ) : (
+      <div
+        style={{
+          width: 1080,
+          height: 1080,
+          padding: "80px 90px 72px",
+          background: "#EFEDE8",
+          color: "#16171A",
+          fontFamily: "Geist",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        {headlineEl}
+        {cardEl}
+        {footerEl}
       </div>
     ),
     {
-      width: 1080,
-      height: 1080,
+      width: wide ? 1200 : 1080,
+      height: wide ? 630 : 1080,
       fonts: [
         { name: "Geist", data: semibold, weight: 600, style: "normal" },
         { name: "Geist", data: regular, weight: 400, style: "normal" },

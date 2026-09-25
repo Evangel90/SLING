@@ -69,19 +69,28 @@ export function claimUrl(origin: string, wallet: string, secret: ClaimSecret, ex
   return `${origin}/claim/${wallet}?u=${unix(secret.unlockAt)}#${frag}`;
 }
 
-/** Blink link: the Actions server must sign, so the secret has to be in the query string. */
-export function blinkUrl(origin: string, wallet: string, secret: ClaimSecret, extras: LinkExtras) {
+function blinkParams(wallet: string, secret: ClaimSecret, extras: LinkExtras) {
   const p = new URLSearchParams({ w: wallet });
   if (secret.kind === "key") p.set("k", secret.seed);
   else {
     p.set("u", unix(secret.unlockAt));
     p.set("c", secret.ciphertext);
   }
-  return `${origin}/api/actions/claim?${withExtras(p, extras)}`;
+  return withExtras(p, extras);
 }
 
-export function dialToUrl(actionUrl: string) {
-  return `https://dial.to/?action=${encodeURIComponent(`solana-action:${actionUrl}`)}`;
+/** Blink action endpoint: the Actions server must sign, so the secret has to be in the query string. */
+export function blinkUrl(origin: string, wallet: string, secret: ClaimSecret, extras: LinkExtras) {
+  return `${origin}/api/actions/claim?${blinkParams(wallet, secret, extras)}`;
+}
+
+/**
+ * Link to post on X. It lives on our own domain (no third-party Blink host): actions.json maps it to
+ * the claim action for Blink clients, crawlers get a gift-card preview, and people are forwarded to
+ * the claim page.
+ */
+export function shareUrl(origin: string, wallet: string, secret: ClaimSecret, extras: LinkExtras) {
+  return `${origin}/b?${blinkParams(wallet, secret, extras)}`;
 }
 
 /**

@@ -12,7 +12,7 @@ import { loadMintInfo, netAfterTwoHops, rawToUi, uiToRaw, formatTokens, formatUs
 import {
   FROM_MAX,
   MESSAGE_MAX,
-  blinkUrl,
+  shareUrl,
   buildCreateTx,
   claimUrl,
   confirmSignature,
@@ -234,7 +234,7 @@ export function CreateGift() {
       }
       const links = {
         claim: claimUrl(origin, giftWallet, secret, extras),
-        blink: blinkUrl(origin, giftWallet, secret, extras),
+        share: shareUrl(origin, giftWallet, secret, extras),
         recover: recoverUrl(origin, giftWallet, seed, extras, secret.kind === "locked" ? unlockAt! : undefined),
       };
 

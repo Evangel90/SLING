@@ -12,6 +12,7 @@ import { formatTokens, formatUsd } from "@/lib/mint";
 import { fetchPreStocks } from "@/lib/prestocks";
 import { unlockSeed } from "@/lib/timelock";
 import { fmtDay, fmtLong, fmtShort } from "@/lib/dates";
+import { shareImageUrl, type ShareState } from "@/lib/share";
 
 // This route receives gift keys (or time-locked ciphertext) in the query string.
 // Never log request URLs or params here.
@@ -71,14 +72,7 @@ export async function GET(req: Request) {
     const sender = from || "Someone";
     const name = view.stock?.name ?? "a PreStock";
     const symbol = view.stock?.symbol ?? "";
-    const shareImage = (st: "claimable" | "locked" | "gone") => {
-      if (!view.stock) return `${origin}/icon.svg`;
-      const q = new URLSearchParams({ s: symbol, n: name, st, usd: view.usd.toFixed(2), t: view.ui.toFixed(4) });
-      if (st === "locked" && unlockAt) q.set("d", fmtShort(new Date(unlockAt)));
-      if (message) q.set("m", message);
-      if (from) q.set("f", from);
-      return `${origin}/api/actions/image?${q}`;
-    };
+    const shareImage = (st: ShareState) => shareImageUrl(origin, view, st, { message, from, unlockAt });
 
     if (view.state.kind === "missing") {
       const res: ActionGetResponse = {

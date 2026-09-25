@@ -58,6 +58,7 @@ sequenceDiagram
 | Claim, immediate (web) | gift wallet + key | `/claim/<wallet>#k=<seed>&m=<message>&f=<from>` |
 | Claim, locked (web) | gift wallet + unlock time + ciphertext | `/claim/<wallet>?u=<unix>#c=<ciphertext>&m=…&f=…` |
 | Claim (Blink) | same, in query | `/api/actions/claim?w=<wallet>&k=<seed>…` or `…&u=<unix>&c=<ciphertext>…` |
+| Share on X | same, in query | `/b?w=<wallet>&k=<seed>…`, mapped to the Blink by `actions.json` |
 | Recovery | gift wallet + **plaintext** key (+ unlock time) | `/recover/<wallet>#k=<seed>&u=<unix>&m=…` |
 
 - The key is the 32-byte ed25519 seed in base58 (44 chars), so links stay short.
@@ -119,7 +120,8 @@ One Next.js app (App Router) serves the UI and the Actions API. Nothing is deplo
 | `/recover/[wallet]` | Recovery page: "Take it back" (with confirm dialog, works while locked), copy claim link, success and already-empty states |
 | `/sent` | Gifts sent from this browser, with live on-chain status and links to each recovery page |
 | `/api/actions/claim` | Solana Actions GET (card metadata; disabled with "Opens Oct 30" while locked, or when empty) / POST (decrypts if locked, returns the partially signed claim tx) |
-| `/api/actions/image` | 1:1 Blink share image (ready, locked, or claimed/taken back), public details only, never the key |
+| `/b` | Shareable link for X: gift-card preview tags for crawlers, forwards people to the claim page |
+| `/api/actions/image` | 1:1 Blink share image (plus a 1200×630 `layout=wide` for link previews) (ready, locked, or claimed/taken back), public details only, never the key |
 | `/actions.json` | Actions rules, with the spec's CORS headers |
 | `/api/prestocks` | PreStocks API proxy (name, symbol, logo, mint, tokenPrice), cached 60s |
 | `/api/rpc` | Allow-listed JSON-RPC proxy so the paid RPC key stays server-side |
@@ -144,7 +146,7 @@ npm run dev                  # http://localhost:3000
 
 You need a Solana wallet holding a little SOL (~0.003 for the gift account rent and fees) and any PreStock ([buy on prestocks.com](https://prestocks.com)). Claim from a second wallet to see the full flow.
 
-To try the Blink, deploy (the Actions API needs a public HTTPS URL) and use "Share on X", which posts a [dial.to](https://dial.to) Blink link.
+To try the Blink, deploy (the Actions API needs a public HTTPS URL) and use "Share on X". It posts a link on our own domain (`/b?…`) with no third-party Blink host in the path: X shows a gift-card preview, Blink clients follow `actions.json` (`/b` → `/api/actions/claim`), and anyone who clicks is forwarded to the claim page with the key moved into the URL fragment.
 
 To demo a lock, pick **Lock until… → Custom date** and set a time two minutes out. The claim page counts down, refuses to open, then opens on time.
 
@@ -152,7 +154,7 @@ To demo a lock, pick **Lock until… → Custom date** and set a time two minute
 
 - **Shipped:** P0 bearer gift links, P1 time-locked gifts, P2 "Gifts sent" and rent recovery.
 - **Conversion deadlines:** a PreStock whose company IPOs must be converted by a deadline. Deadlines live in `src/lib/config.ts` (SPACEX 2027-03-12, also excluded outright) and can be added without a code change via `NEXT_PUBLIC_CONVERSION_DEADLINES='{"ANTHROPIC":"2026-12-15"}'`. Unlock dates are then capped a week before the deadline, and the claim page and Blink warn "Claim before …".
-- **Next:** Dialect registry approval for native X unfurls (until then, X posts use dial.to links); gifts funded in USDC; group gifts.
+- **Next:** Dialect registry approval for native X unfurls (until then, X shows our own gift-card preview and the link opens the claim page); gifts funded in USDC; group gifts.
 - **Next:** gifts funded in USDC, group gifts.
 
 ## Compliance

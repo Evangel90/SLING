@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { GiftCard, ICON } from "./GiftCard";
 import { CopyField, ExternalIcon, useCopy, useToast } from "./ui";
-import { dialToUrl } from "@/lib/gift";
 import { explorerTx } from "@/lib/config";
 import { formatUsd } from "@/lib/mint";
 import { saveGift } from "@/lib/localGifts";
@@ -14,7 +13,7 @@ import type { PreStock } from "@/lib/prestocks";
 
 export type CreatedGift = {
   wallet: string;
-  links: { claim: string; blink: string; recover: string };
+  links: { claim: string; share: string; recover: string };
   signature: string;
   stock: PreStock;
   usd: number;
@@ -245,7 +244,7 @@ function ShareClaim({ gift, onAnother, toast }: { gift: CreatedGift; onAnother: 
   const tweet = gift.unlockAt
     ? `I just gifted ${value}, pre-IPO, on Solana. It unlocks ${fmtShort(new Date(gift.unlockAt))}. First to claim it then gets it.`
     : `I just gifted ${value}, pre-IPO, on Solana. First to claim it gets it.`;
-  const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(dialToUrl(gift.links.blink))}`;
+  const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(gift.links.share)}`;
   const waUrl = `https://wa.me/?text=${encodeURIComponent(`A gift for you: ${value}, before it goes public. ${gift.links.claim}`)}`;
 
   return (
