@@ -8,11 +8,12 @@ Built for **[Stocklana](https://hackathons.solana.com)**: Solana Foundation main
 
 | | |
 |---|---|
-| Live app | `TODO: https://<your-deployment>.vercel.app` |
-| Demo video (2 min) | `TODO` |
-| Mainnet gift created | `TODO: https://solscan.io/tx/...` |
-| Mainnet gift claimed (second wallet) | `TODO: https://solscan.io/tx/...` |
-| Mainnet gift taken back | `TODO: https://solscan.io/tx/...` |
+| Live app | https://sling-gift.vercel.app/ |
+| Demo video (3 min) | https://youtu.be/NHpylwmfgp4 |
+| Mainnet gift wallet | [CjiV5V…97o3m](https://solscan.io/account/CjiV5Vx97igDne2qWXHRivJ4w8QJNJetUGyQQAT97o3m) |
+| Mainnet gift created | [5j5rEg…QJRP3C](https://solscan.io/tx/5j5rEg4cRJoXDiKRYdr7CT5RieDCk7oe2xnWAH3aPaR26fnb69apGNjmX5PNRLJKENg7LJSgZuQ1qhj7ySQJRP3C) |
+| Mainnet gift taken back (sweep, fee harvest, account closed) | [4WfWYd…fNSu5iod7](https://solscan.io/tx/4WfWYdarxzhG4S4zHGvrnk98w1wFTqa6FbntQYU5WQijXx5UqpUaeEjeHkkYJEoYRH6PLqpcuguXCnMNfSu5iod7) |
+| Blink on X | Actions API live; applied to the [Dialect registry](https://docs.dialect.to/blinks/blinks-provider/blink-registry), approval pending (see [Blinks on X](#blinks-on-x)) |
 
 ---
 
@@ -47,7 +48,7 @@ sequenceDiagram
 
 ### Why Solana
 
-- **Blinks** turn a link into a one-tap claim right inside X.
+- **Blinks** turn a link into a one-tap claim right inside X (once registered, see below).
 - **Fees** low enough that a $10 gift makes sense.
 - **PreStocks only exist on Solana.**
 
@@ -150,11 +151,18 @@ To try the Blink, deploy (the Actions API needs a public HTTPS URL) and use "Sha
 
 To demo a lock, pick **Lock until… → Custom date** and set a time two minutes out. The claim page counts down, refuses to open, then opens on time.
 
+### Blinks on X
+
+The Actions endpoints (`/actions.json`, `/api/actions/claim`) are live and spec-compliant. Wallet extensions (Phantom, Backpack, Dialect) only unfurl Actions listed as trusted in the [Dialect Actions Registry](https://docs.dialect.to/blinks/blinks-provider/blink-registry), which is reviewed manually. We've applied (25 Sep 2026) and approval is pending. Until it's approved:
+
+- On X, the post shows our gift-card preview and the link opens the claim page, so every gift is still claimable in one signature.
+- The Blink itself works: paste a gift's Share on X link into [dial.to](https://dial.to), or use a Blinks client with `securityLevel: "all"`.
+
 ## Roadmap
 
 - **Shipped:** P0 bearer gift links, P1 time-locked gifts, P2 "Gifts sent" and rent recovery.
 - **Conversion deadlines:** a PreStock whose company IPOs must be converted by a deadline. Deadlines live in `src/lib/config.ts` (SPACEX 2027-03-12, also excluded outright) and can be added without a code change via `NEXT_PUBLIC_CONVERSION_DEADLINES='{"ANTHROPIC":"2026-12-15"}'`. Unlock dates are then capped a week before the deadline, and the claim page and Blink warn "Claim before …".
-- **Next:** Dialect registry approval for native X unfurls (until then, X shows our own gift-card preview and the link opens the claim page); gifts funded in USDC; group gifts.
+- **Pending:** Dialect registry approval (applied 25 Sep 2026), so X unfurls gifts as native Blinks.
 - **Next:** gifts funded in USDC, group gifts.
 
 ## Compliance
