@@ -706,12 +706,16 @@ function ConfirmTakeBack({
   onConfirm: () => void;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const onCancelRef = useRef(onCancel);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
   useEffect(() => {
     cancelRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancelRef.current();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center">

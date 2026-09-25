@@ -59,3 +59,74 @@ function hash(s: string) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return h;
 }
+
+// ---------- time zones ----------
+
+export const TIME_ZONES: { value: string; label: string }[] = [
+  { value: "local", label: "Your local time" },
+  { value: "UTC", label: "UTC" },
+  { value: "America/Los_Angeles", label: "Los Angeles (Pacific)" },
+  { value: "America/New_York", label: "New York (Eastern)" },
+  { value: "America/Sao_Paulo", label: "São Paulo" },
+  { value: "Europe/London", label: "London" },
+  { value: "Africa/Lagos", label: "Lagos (WAT)" },
+  { value: "Europe/Berlin", label: "Berlin (Central Europe)" },
+  { value: "Africa/Nairobi", label: "Nairobi (EAT)" },
+  { value: "Asia/Dubai", label: "Dubai" },
+  { value: "Asia/Kolkata", label: "Mumbai (IST)" },
+  { value: "Asia/Singapore", label: "Singapore" },
+  { value: "Asia/Tokyo", label: "Tokyo" },
+  { value: "Australia/Sydney", label: "Sydney" },
+];
+
+export const localZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+function partsIn(ms: number, zone: string) {
+  const o: Record<string, string> = {};
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: zone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .formatToParts(new Date(ms))
+    .forEach((p) => (o[p.type] = p.value));
+  return o;
+}
+
+function offsetMs(ms: number, zone: string) {
+  const o = partsIn(ms, zone);
+  return Date.UTC(+o.year, +o.month - 1, +o.day, +o.hour % 24, +o.minute) - Math.floor(ms / 60000) * 60000;
+}
+
+/** The instant when the clock in `zone` reads y-m-d h:mi (month is 1-based). Handles DST by refining twice. */
+export function wallTime(y: number, m: number, d: number, h: number, mi: number, zone: string): number {
+  const guess = Date.UTC(y, m - 1, d, h, mi);
+  let u = guess - offsetMs(guess, zone);
+  u = guess - offsetMs(u, zone);
+  return u;
+}
+
+/** "2026-10-30" and "09:00" as seen in `zone`. */
+export function isoIn(ms: number, zone: string) {
+  const o = partsIn(ms, zone);
+  return { date: `${o.year}-${o.month}-${o.day}`, time: `${o.hour}:${o.minute}` };
+}
+
+export const fmtDayIn = (d: Date, zone: string, weekday = false) =>
+  d.toLocaleDateString("en-US", {
+    timeZone: zone,
+    ...(weekday ? { weekday: "short", month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" }),
+  } as Intl.DateTimeFormatOptions);
+
+export const fmtShortIn = (d: Date, zone: string) => d.toLocaleDateString("en-US", { timeZone: zone, month: "short", day: "numeric" });
+
+export const fmtTimeIn = (d: Date, zone: string) =>
+  d.toLocaleTimeString("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit" });
+
+export const tzNameIn = (d: Date, zone: string) =>
+  new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName")
+    ?.value ?? "";

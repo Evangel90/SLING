@@ -115,7 +115,7 @@ One Next.js app (App Router) serves the UI and the Actions API. Nothing is deplo
 
 | Path | What |
 |---|---|
-| `/` | Create a gift: picker with live prices, USD amount → tokens → net after fees (with "Use max"), optional time-lock (1 week / 1 month / custom date and time), message, sign. On phones it's a 5-step wizard. Then two steps: **save the recovery link** (copy / download / save in browser, confirmed by a checkbox), then **share the claim link** (copy, X Blink, WhatsApp, QR) |
+| `/` | Create a gift: picker with live prices, USD amount → tokens → net after fees (with "Use max"), optional time-lock (1 week / 1 month / custom date and time, set in the recipient's time zone), message, sign. On phones it's a 5-step wizard. Then two steps: **save the recovery link** (copy / download / save in browser, confirmed by a checkbox), then **share the claim link** (copy, Share on X with an editable post and card-image preview, WhatsApp, QR) |
 | `/claim/[wallet]` | Gift card + claim panel. States: locked (live countdown, add to calendar), unlocked, claimable, claiming (step list), success, claimed or taken back, not found, failed with retry |
 | `/recover/[wallet]` | Recovery page: "Take it back" (with confirm dialog, works while locked), copy claim link, success and already-empty states |
 | `/sent` | Gifts sent from this browser, with live on-chain status and links to each recovery page |

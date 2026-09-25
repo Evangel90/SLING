@@ -39,10 +39,14 @@ export async function GET(req: Request) {
   const date = (q.get("d") ?? "").slice(0, 16);
   // "wide" (1200×630) is for link previews like X cards, which crop to ~1.91:1. Default is the 1:1 Blink image.
   const wide = q.get("layout") === "wide";
-  const S = wide ? 1.3 : 1.85; // card drawn at the design's 400×252, scaled
+  const S = wide ? 1.35 : 1.85; // card drawn at the design's 400×252, scaled
 
   const b = brandFor(symbol);
-  const pill = { ...PILL[st], label: st === "locked" && date ? `Opens ${date}` : PILL[st].label };
+  const chipLabel = st === "locked" && date ? `Opens ${date}` : PILL[st].label;
+  const pill = {
+    ...PILL[st],
+    label: st === "locked" && date ? `Opens ${date}` : st === "claimable" && wide ? "Tap to claim" : PILL[st].label,
+  };
   const muted = st === "gone";
   const cardBg = muted ? "#1B1C1F" : b.card;
   const [dollars, cents] = usd.toFixed(2).split(".");
@@ -54,7 +58,7 @@ export async function GET(req: Request) {
   const headlineEl = (
         <div
           style={{
-            fontSize: wide ? 64 : 92,
+            fontSize: wide ? 76 : 92,
             fontWeight: 600,
             letterSpacing: "-0.045em",
             lineHeight: 0.98,
@@ -128,7 +132,7 @@ export async function GET(req: Request) {
               <svg width={13 * S} height={13 * S} viewBox="0 0 24 24" fill="none" stroke={pill.cfg} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
                 <path d={pill.icon} />
               </svg>
-              {pill.label}
+              {chipLabel}
             </div>
           </div>
           <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 3 * S, opacity: muted ? 0.72 : 1 }}>
@@ -168,19 +172,18 @@ export async function GET(req: Request) {
           </div>
         </div>
   );
-  const footerEl = (
-        <div style={{ width: "100%", display: "flex", flexDirection: wide ? "column" : "row", alignItems: wide ? "flex-start" : "center", justifyContent: "space-between", gap: wide ? 28 : 0 }}>
+  const pillEl = (
           <div
             style={{
-              height: 64,
-              padding: "0 26px",
+              height: wide ? 60 : 64,
+              padding: wide ? "0 24px" : "0 26px",
               borderRadius: 999,
               background: pill.bg,
               color: pill.fg,
               display: "flex",
               alignItems: "center",
               gap: 12,
-              fontSize: 30,
+              fontSize: wide ? 28 : 30,
               fontWeight: 600,
             }}
           >
@@ -189,15 +192,22 @@ export async function GET(req: Request) {
             </svg>
             {pill.label}
           </div>
+  );
+  const brandEl = (
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <svg width="44" height="44" viewBox="0 0 28 28">
+            <svg width={wide ? 40 : 44} height={wide ? 40 : 44} viewBox="0 0 28 28">
               <rect width="28" height="28" rx="8" fill="#16171A" />
               <path d="M14 11.2c-1.4-3.2-5.4-3.6-5.4-1.4s3.6 1.4 5.4 1.4zm0 0c1.4-3.2 5.4-3.6 5.4-1.4s-3.6 1.4-5.4 1.4z" stroke="#FFFFFF" strokeWidth="1.5" fill="none" strokeLinejoin="round" />
               <rect x="7.5" y="11.2" width="13" height="9.3" rx="2" stroke="#FFFFFF" strokeWidth="1.5" fill="none" />
               <path d="M14 11.2v9.3" stroke="#FFFFFF" strokeWidth="1.5" />
             </svg>
-            <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: "0.16em" }}>SLING</span>
+            <span style={{ fontSize: wide ? 28 : 32, fontWeight: 600, letterSpacing: "0.16em" }}>SLING</span>
           </div>
+  );
+  const footerEl = (
+        <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {pillEl}
+          {brandEl}
         </div>
   );
 
@@ -207,19 +217,20 @@ export async function GET(req: Request) {
         style={{
           width: 1200,
           height: 630,
-          padding: "64px 56px 60px 72px",
+          padding: "64px 72px",
           background: "#EFEDE8",
           color: "#16171A",
           fontFamily: "Geist",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 40,
+          gap: 48,
         }}
       >
-        <div style={{ width: 520, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ width: 468, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-start" }}>
+          {brandEl}
           {headlineEl}
-          {footerEl}
+          {pillEl}
         </div>
         {cardEl}
       </div>

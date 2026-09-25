@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { GiftCard, ICON } from "./GiftCard";
+import { ShareXDialog } from "./ShareXDialog";
 import { CopyField, ExternalIcon, useCopy, useToast } from "./ui";
 import { explorerTx } from "@/lib/config";
 import { formatUsd } from "@/lib/mint";
@@ -233,6 +234,7 @@ function SaveRecovery({ gift, onContinue, toast }: { gift: CreatedGift; onContin
 }
 
 function ShareClaim({ gift, onAnother, toast }: { gift: CreatedGift; onAnother: () => void; toast: (m: string) => void }) {
+  const [sharingX, setSharingX] = useState(false);
   const copy = useCopy(toast);
   const [qr, setQr] = useState<string | null>(null);
 
@@ -241,10 +243,6 @@ function ShareClaim({ gift, onAnother, toast }: { gift: CreatedGift; onAnother: 
   }, [gift.links.claim]);
 
   const value = `${formatUsd(gift.usd)} of ${gift.stock.name}`;
-  const tweet = gift.unlockAt
-    ? `I just gifted ${value}, pre-IPO, on Solana. It unlocks ${fmtShort(new Date(gift.unlockAt))}. First to claim it then gets it.`
-    : `I just gifted ${value}, pre-IPO, on Solana. First to claim it gets it.`;
-  const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(gift.links.share)}`;
   const waUrl = `https://wa.me/?text=${encodeURIComponent(`A gift for you: ${value}, before it goes public. ${gift.links.claim}`)}`;
 
   return (
@@ -296,12 +294,16 @@ function ShareClaim({ gift, onAnother, toast }: { gift: CreatedGift; onAnother: 
       <section aria-label="Share your gift" className="bg-surface border border-line rounded-3xl p-5 sm:p-7 flex flex-col gap-5">
         <CopyField label="Claim link · share this one" value={gift.links.claim} onCopy={() => copy(gift.links.claim)} />
         <div className="grid grid-cols-2 gap-2">
-          <a href={xUrl} target="_blank" rel="noreferrer" className="h-12 rounded-xl border border-line bg-surface hover:bg-surface-2 text-sm font-semibold flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSharingX(true)}
+            className="h-12 rounded-xl border border-line bg-surface hover:bg-surface-2 text-sm font-semibold flex items-center justify-center gap-2"
+          >
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.3L5.3 21H2.2l7.2-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z" />
             </svg>
             Share on X
-          </a>
+          </button>
           <a href={waUrl} target="_blank" rel="noreferrer" className="h-12 rounded-xl border border-line bg-surface hover:bg-surface-2 text-sm font-semibold flex items-center justify-center gap-2">
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 18.5l1.2-3.4A7.5 7.5 0 1 1 9 18.1z" />
@@ -309,9 +311,6 @@ function ShareClaim({ gift, onAnother, toast }: { gift: CreatedGift; onAnother: 
             Share on WhatsApp
           </a>
         </div>
-        <p className="m-0 -mt-2 text-[12.5px] text-muted leading-snug">
-          Sharing on X posts a Blink anyone can claim from their feed. Great for giveaways; send a DM for one person.
-        </p>
         <div className="flex items-center gap-5 p-4 rounded-2xl bg-ground">
           <div className="size-[150px] shrink-0 p-2 rounded-xl bg-white">
             {qr ? (
@@ -346,6 +345,7 @@ function ShareClaim({ gift, onAnother, toast }: { gift: CreatedGift; onAnother: 
           </span>
         </div>
       </section>
+      {sharingX && <ShareXDialog gift={gift} onClose={() => setSharingX(false)} toast={toast} />}
     </main>
   );
 }

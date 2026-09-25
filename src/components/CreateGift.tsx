@@ -23,7 +23,7 @@ import {
 import { saveGift } from "@/lib/localGifts";
 import { DEADLINE_BUFFER_DAYS } from "@/lib/config";
 import { LOCK_MAX_MS, LOCK_MIN_MS, lockSeed } from "@/lib/timelock";
-import { fmtDay, fmtShort, fmtTime, tzName } from "@/lib/dates";
+import { TIME_ZONES, fmtDayIn, fmtShortIn, fmtTimeIn, isoIn, localZone, tzNameIn, wallTime } from "@/lib/dates";
 
 const QUICK = [10, 25, 50, 100];
 // Gift token-account rent (~0.0021 SOL) plus priority/network fees, with headroom.
@@ -33,14 +33,10 @@ const STEPS = ["Company", "Amount", "Unlock date · optional", "Message · optio
 type Phase = "form" | "locking" | "signing" | "confirming";
 type Preset = "1w" | "1m" | "custom";
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const isoTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-function daysFromNowAt9(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  d.setHours(9, 0, 0, 0);
-  return d;
+/** 9:00 in `zone`, `days` after today's date there. */
+function daysFromTodayAt9(now: number, days: number, zone: string) {
+  const [y, m, d] = isoIn(now, zone).date.split("-").map(Number);
+  return wallTime(y, m, d + days, 9, 0, zone);
 }
 
 function assertStillFuture(unlockAt: number) {
@@ -71,7 +67,7 @@ export function CreateGift() {
   const [tip, setTip] = useState(false);
   const [mode, setMode] = useState<"now" | "lock">("now");
   const [preset, setPreset] = useState<Preset>("1w");
-  const [presetAt, setPresetAt] = useState<number | null>(null);
+  const [tz, setTz] = useState("local");
   const [customDate, setCustomDate] = useState("");
   const [customTime, setCustomTime] = useState("09:00");
   const [mstep, setMstep] = useState(1);
@@ -166,16 +162,22 @@ export function CreateGift() {
   const maxUsd = Math.floor(heldUsd * 100) / 100 - 0.01;
 
   const locked = mode === "lock";
+  // The lock is set on the recipient's clock: dates and times below are read in `zone`.
+  const myZone = localZone();
+  const zone = tz === "local" ? myZone : tz;
   let unlockAt: number | null = null;
   if (locked) {
     if (preset === "custom") {
-      const t = new Date(`${customDate}T${customTime || "00:00"}`).getTime();
+      const [y, m, d] = customDate.split("-").map(Number);
+      const [hh, mm] = (customTime || "00:00").split(":").map(Number);
+      const t = y && m && d ? wallTime(y, m, d, hh || 0, mm || 0, zone) : NaN;
       unlockAt = Number.isFinite(t) ? t : null;
-    } else unlockAt = presetAt;
+    } else unlockAt = daysFromTodayAt9(now, preset === "1w" ? 7 : 30, zone);
   }
   // Conversion deadline: the gift must open at least a week before it, or it could expire unclaimed.
-  const deadline = stock?.deadline ? new Date(`${stock.deadline}T09:00`) : null;
-  const latestUnlock = deadline ? deadline.getTime() - DEADLINE_BUFFER_DAYS * 86_400_000 : null;
+  const [dy, dm, dd] = (stock?.deadline ?? "").split("-").map(Number);
+  const deadline = stock?.deadline ? new Date(wallTime(dy, dm, dd, 9, 0, zone)) : null;
+  const latestUnlock = deadline ? wallTime(dy, dm, dd - DEADLINE_BUFFER_DAYS, 9, 0, zone) : null;
   let capped = false;
   if (locked && unlockAt && latestUnlock && unlockAt > latestUnlock) {
     unlockAt = latestUnlock;
@@ -190,6 +192,11 @@ export function CreateGift() {
     else if (unlockAt - now > LOCK_MAX_MS) lockError = "Locks can be at most 5 years.";
   }
   const openDate = unlockAt ? new Date(unlockAt) : null;
+  const opensLabel = openDate ? `${fmtDayIn(openDate, zone)}, ${fmtTimeIn(openDate, zone)} ${tzNameIn(openDate, zone)}` : null;
+  const localNote =
+    openDate && zone !== myZone && (fmtTimeIn(openDate, zone) !== fmtTimeIn(openDate, myZone) || fmtDayIn(openDate, zone) !== fmtDayIn(openDate, myZone))
+      ? `That’s ${fmtTimeIn(openDate, myZone)} on ${fmtDayIn(openDate, myZone, true)} in your time (${tzNameIn(openDate, myZone)}).`
+      : null;
 
   const busy = phase !== "form";
   const amountOk = !!mintInfo && raw > 0n && !amountError;
@@ -203,18 +210,16 @@ export function CreateGift() {
 
   function pickPreset(p: Preset) {
     setPreset(p);
-    if (p === "1w") setPresetAt(daysFromNowAt9(7).getTime());
-    if (p === "1m") setPresetAt(daysFromNowAt9(30).getTime());
     if (p === "custom") {
-      const base = unlockAt ? new Date(unlockAt) : daysFromNowAt9(1);
-      setCustomDate(isoDate(base));
-      setCustomTime(isoTime(base));
+      const base = isoIn(unlockAt ?? daysFromTodayAt9(now, 1, zone), zone);
+      setCustomDate(base.date);
+      setCustomTime(base.time);
     }
   }
 
   function pickMode(m: "now" | "lock") {
     setMode(m);
-    if (m === "lock" && preset !== "custom" && !presetAt) pickPreset(preset);
+    if (m === "lock" && preset === "custom" && !customDate) pickPreset("custom");
   }
 
   async function create() {
@@ -305,7 +310,7 @@ export function CreateGift() {
                 usd={usd}
                 tokens={ui}
                 status={cardStatus}
-                date={openDate ? fmtShort(openDate) : undefined}
+                date={openDate ? fmtShortIn(openDate, zone) : undefined}
               />
             </div>
           )}
@@ -621,8 +626,8 @@ export function CreateGift() {
                       <input
                         type="date"
                         value={customDate}
-                        min={isoDate(new Date(now))}
-                        max={latestUnlock ? isoDate(new Date(latestUnlock)) : undefined}
+                        min={isoIn(now, zone).date}
+                        max={latestUnlock ? isoIn(latestUnlock, zone).date : undefined}
                         disabled={busy}
                         onChange={(e) => e.target.value && setCustomDate(e.target.value)}
                         className="h-10 px-2.5 rounded-[10px] border border-line bg-surface text-sm text-ink"
@@ -641,10 +646,32 @@ export function CreateGift() {
                   </span>
                 )}
               </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <label className="flex items-center gap-2 text-[13px] text-muted">
+                  <span>
+                    Time zone<span className="lg:hidden"> · pick theirs</span>
+                  </span>
+                  <select
+                    value={tz}
+                    disabled={busy}
+                    onChange={(e) => setTz(e.target.value)}
+                    className="h-10 px-2.5 rounded-[10px] border border-line bg-surface text-sm text-ink"
+                  >
+                    {TIME_ZONES.map((z) => (
+                      <option key={z.value} value={z.value}>
+                        {z.value === "local" ? `Your local time (${tzNameIn(new Date(now), myZone)})` : z.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="hidden lg:inline text-[13px] text-muted">Pick theirs so it opens at the right moment for them.</span>
+              </div>
               {openDate && !lockError && (
-                <div className="text-[15px] font-semibold">
-                  Opens {fmtDay(openDate, true)} at {fmtTime(openDate)}{" "}
-                  <span className="font-normal text-muted">(your time, {tzName(openDate)})</span>
+                <div className="flex flex-col gap-1">
+                  <div className="text-[15px] font-semibold">
+                    Opens {fmtDayIn(openDate, zone, true)} at {fmtTimeIn(openDate, zone)} {tzNameIn(openDate, zone)}
+                  </div>
+                  {localNote && <div className="text-[13px] text-muted">{localNote}</div>}
                 </div>
               )}
               {lockError && <ErrorLine>{lockError}</ErrorLine>}
@@ -655,8 +682,8 @@ export function CreateGift() {
                     <path d="M12 10v4M12 17h.01" />
                   </svg>
                   <span>
-                    {stock?.name} has announced a conversion deadline of {fmtDay(deadline)}. To leave at least a week to claim, the
-                    latest opening date is {fmtDay(new Date(latestUnlock))}.{capped ? " We moved your date to fit." : ""}
+                    {stock?.name} has announced a conversion deadline of {fmtDayIn(deadline, zone)}. To leave at least a week to claim, the
+                    latest opening date is {fmtDayIn(new Date(latestUnlock), zone)}.{capped ? " We moved your date to fit." : ""}
                   </span>
                 </div>
               )}
@@ -721,7 +748,7 @@ export function CreateGift() {
               message={message}
               from={from}
               status={cardStatus}
-              date={openDate ? fmtShort(openDate) : undefined}
+              date={openDate ? fmtShortIn(openDate, zone) : undefined}
             />
           </div>
         ) : (
@@ -736,7 +763,7 @@ export function CreateGift() {
               {mintInfo ? `≈ ${formatUsd(netUsd)} of ${stock?.name}` : "…"}
             </Row>
             <Row label="Can be opened">
-              {locked && openDate ? `${fmtDay(openDate)}, ${fmtTime(openDate)} ${tzName(openDate)}` : "Right away"}
+              {locked && opensLabel ? opensLabel : "Right away"}
             </Row>
             <Row label="Network fee" last>
               &lt; $0.01
