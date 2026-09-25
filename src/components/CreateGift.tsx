@@ -76,7 +76,8 @@ export function CreateGift() {
   const [customTime, setCustomTime] = useState("09:00");
   const [mstep, setMstep] = useState(1);
   const [mintState, setMintState] = useState<{ mint: string; info?: MintInfo; error?: string } | null>(null);
-  const [wallet, setWallet] = useState<{ owner: string; balances: Map<string, bigint>; sol: number | null } | null>(null);
+  const [wallet, setWallet] = useState<{ owner: string; balances: Map<string, bigint>; sol: number | null; check: number } | null>(null);
+  const [balanceCheck, setBalanceCheck] = useState(0);
   const [phase, setPhase] = useState<Phase>("form");
   const [txError, setTxError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedGift | null>(null);
@@ -111,13 +112,13 @@ export function CreateGift() {
           const info = a.account.data.parsed.info as { mint: string; tokenAmount: { amount: string } };
           m.set(info.mint, (m.get(info.mint) ?? 0n) + BigInt(info.tokenAmount.amount));
         }
-        if (alive) setWallet({ owner, balances: m, sol: lamports / LAMPORTS_PER_SOL });
+        if (alive) setWallet({ owner, balances: m, sol: lamports / LAMPORTS_PER_SOL, check: balanceCheck });
       })
-      .catch(() => alive && setWallet({ owner, balances: new Map(), sol: null }));
+      .catch(() => alive && setWallet({ owner, balances: new Map(), sol: null, check: balanceCheck }));
     return () => {
       alive = false;
     };
-  }, [connection, publicKey, created]);
+  }, [connection, publicKey, created, balanceCheck]);
 
   if (created) {
     return (
@@ -138,6 +139,7 @@ export function CreateGift() {
   const mintError = current?.error ?? null;
   const mine = wallet && publicKey && wallet.owner === publicKey.toBase58() ? wallet : null;
   const balances = mine?.balances ?? null;
+  const refreshing = !!mine && mine.check !== balanceCheck;
   const solBalance = mine?.sol ?? null;
 
   const usd = parseFloat(amount) || 0;
@@ -487,22 +489,67 @@ export function CreateGift() {
               </span>
             )}
           </div>
-          {amountError && usd > 0 && (
-            <ErrorLine
-              action={
-                insufficient && maxUsd >= 1 ? (
+          {amountError && usd > 0 && !insufficient && <ErrorLine>{amountError}</ErrorLine>}
+          {insufficient && usd >= 1 && stock && (
+            <div id="err" role="alert" className="flex flex-col gap-3 px-3.5 lg:px-4 py-3.5 rounded-[14px] bg-red-bg text-red text-sm">
+              <div className="flex gap-2.5 leading-[1.4]">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M12 8v5M12 16h.01" />
+                </svg>
+                <span>
+                  {heldRaw === 0n ? (
+                    <>You don&apos;t hold any {stock.name} in this wallet yet.</>
+                  ) : (
+                    <>
+                      You have <strong className="font-semibold">{formatUsd(heldUsd)}</strong> of {stock.name} in this wallet. Lower the
+                      amount to continue.
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-2 lg:pl-7">
+                {maxUsd >= 1 && (
                   <button
                     type="button"
                     onClick={() => setAmount(maxUsd.toFixed(2))}
-                    className="h-9 px-3 rounded-lg bg-surface text-ink text-[13px] font-semibold whitespace-nowrap"
+                    className="h-11 lg:h-10 px-3.5 rounded-xl lg:rounded-[10px] border border-red-line/40 bg-surface text-ink text-sm lg:text-[13.5px] font-semibold whitespace-nowrap"
                   >
                     Use max · {formatUsd(maxUsd)}
                   </button>
-                ) : null
-              }
-            >
-              {amountError}
-            </ErrorLine>
+                )}
+                <a
+                  href={stock.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`h-11 lg:h-10 px-3.5 rounded-xl lg:rounded-[10px] border border-red-line/40 bg-surface text-ink text-sm lg:text-[13.5px] font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                    maxUsd >= 1 ? "" : "col-span-2"
+                  }`}
+                >
+                  Get {stock.name} tokens
+                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 5h5v5M19 5l-8 8M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4" />
+                  </svg>
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setBalanceCheck((n) => n + 1)}
+                  disabled={refreshing}
+                  aria-busy={refreshing}
+                  className="col-span-2 h-11 lg:h-10 px-3 rounded-[10px] text-ink text-sm lg:text-[13.5px] font-semibold flex items-center justify-center gap-1.5"
+                >
+                  {refreshing ? (
+                    <Spinner size={15} />
+                  ) : (
+                    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4.5h-4.5" />
+                    </svg>
+                  )}
+                  {refreshing ? "Checking your wallet…" : "I've got them, refresh balance"}
+                </button>
+              </div>
+            </div>
           )}
           {solError && <ErrorLine>{solError}</ErrorLine>}
           {mintError && <ErrorLine>{mintError}</ErrorLine>}
