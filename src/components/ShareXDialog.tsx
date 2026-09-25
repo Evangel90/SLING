@@ -10,7 +10,7 @@ const X_URL_LENGTH = 23; // X counts every link as 23 characters
 
 function defaultPost(gift: CreatedGift) {
   // Cashtag with the PreStock's own symbol ($OPENAI, $ANTHROPIC, $FIGUREAI…) so the post is discoverable on X.
-  const value = `${formatUsd(gift.usd)} of ${gift.stock.name} ($${gift.stock.symbol})`;
+  const value = `${formatUsd(gift.usd)} of $${gift.stock.symbol}`;
   const opener = gift.message ? `${gift.message.trim()} ` : "";
   const when = gift.unlockAt ? ` It opens ${fmtShort(new Date(gift.unlockAt))}.` : "";
   return `${opener}I sent you ${value} before it goes public.${when} Claim it here:`;
